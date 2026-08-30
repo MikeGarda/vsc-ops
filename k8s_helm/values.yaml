@@ -6,10 +6,10 @@
 images:
   backend:
     repository: ghcr.io/mikegarda/user_mgmt_service-backend
-    tag: dc8eb87
+    tag: 0ad0f28
   frontend:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
-    tag: dc8eb87
+    tag: 0ad0f28
   postgres: postgres:16-alpine
 backend:
   replicas: 1
