@@ -5,10 +5,10 @@
 
 images:
   backend:
-    repository: ghcr.io/0x800f081f/user_mgmt_service-backend
+    repository: ghcr.io/mikegarda/user_mgmt_service-backend
     tag: latest
   frontend:
-    repository: ghcr.io/0x800f081f/user_mgmt_service-frontend
+    repository: ghcr.io/mikegarda/user_mgmt_service-frontend
     tag: latest
   postgres: postgres:16-alpine
 
