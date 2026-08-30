@@ -6,26 +6,22 @@
 images:
   backend:
     repository: ghcr.io/mikegarda/user_mgmt_service-backend
-    tag: latest
+    tag: 41cc63e
   frontend:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
-    tag: latest
+    tag: 41cc63e
   postgres: postgres:16-alpine
-
 backend:
   replicas: 1
   port: 8080
-
 frontend:
   replicas: 1
   port: 3000
-
 db:
   replicas: 1
   port: 5432
   storage: 1Gi
   mountPath: /var/lib/postgresql
-
 # Nicht-sensible Konfiguration -> ConfigMap
 config:
   SPRING_DATASOURCE_URL: "jdbc:postgresql://db:5432/postgres"
@@ -36,7 +32,6 @@ config:
   NEXT_PUBLIC_API_URL: "http://backend:8080"
   POSTGRES_USER: "postgres"
   POSTGRES_DB: "postgres"
-
 # Ingress fuer DigitalOcean (nginx). Ein Pfad -> Frontend.
 # Das Backend wird cluster-intern ueber http://backend:8080 angesprochen (BFF).
 ingress:
@@ -46,7 +41,6 @@ ingress:
     - path: /
       service: frontend
       port: 3000
-
 # HINWEIS: Das Secret 'app-secret' (DB-Passwort + JWT-Secret) wird NICHT vom Chart
 # verwaltet, sondern einmalig im Cluster angelegt (setup-gitops.ps1) - damit keine
 # Geheimnisse im Git liegen. Die Deployments referenzieren es nur ueber den Namen.
