@@ -5,7 +5,11 @@ metadata:
   labels:
     {{- include "user-mgmt.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.backend.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       {{- include "user-mgmt.selectorLabels" "backend" | nindent 6 }}
