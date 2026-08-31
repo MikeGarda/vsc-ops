@@ -46,6 +46,11 @@ spec:
               mountPath: {{ .Values.db.mountPath }}
           resources:
             {{- toYaml .Values.db.resources | nindent 12 }}
+          readinessProbe:
+            exec:
+              command: [pg_isready, -d, db_prod]
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
         - name: db-storage
           persistentVolumeClaim:
