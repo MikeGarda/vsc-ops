@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: user-mgmt
+  name: user-mgmt-prod
   namespace: argocd
 spec:
   project: default
@@ -9,9 +9,13 @@ spec:
     repoURL: https://github.com/MikeGarda/vsc-ops.git
     targetRevision: main
     path: k8s_helm
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: user-mgmt
+    namespace: user-mgmt-prod
   syncPolicy:
     automated:
       prune: true

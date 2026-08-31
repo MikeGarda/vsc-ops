@@ -44,6 +44,8 @@ spec:
           volumeMounts:
             - name: db-storage
               mountPath: {{ .Values.db.mountPath }}
+          resources:
+            {{- toYaml .Values.db.resources | nindent 12 }}
       volumes:
         - name: db-storage
           persistentVolumeClaim:

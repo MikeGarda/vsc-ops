@@ -1,0 +1,30 @@
+# ============================================================
+# PROD-Umgebung (Namespace user-mgmt-prod)
+# Groessere Ressourcen, Backend redundant (2 Replicas).
+# ============================================================
+
+backend:
+  replicas: 2
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 640Mi }
+
+frontend:
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits:   { cpu: 400m, memory: 512Mi }
+
+db:
+  replicas: 1
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 640Mi }
+
+resourceQuota:
+  enabled: true
+  requests: { cpu: "2",  memory: 2Gi }
+  limits:   { cpu: "4",  memory: 4Gi }
+
+networkPolicy:
+  enabled: true

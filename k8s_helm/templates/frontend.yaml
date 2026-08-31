@@ -25,6 +25,8 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: NEXT_PUBLIC_API_URL
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
 ---
 apiVersion: v1
 kind: Service

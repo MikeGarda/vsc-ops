@@ -1,28 +1,41 @@
 # ============================================================
-# Zentrale Konfiguration. KEIN Wert ist in den Templates fest.
-# images.*.tag wird von der CI-Pipeline automatisch aktualisiert (Promotion).
+# BASIS-Werte (Defaults). Werden je Umgebung von
+# values-staging.yaml / values-prod.yaml ueberschrieben.
+# images.*.tag wird von der CI-Pipeline aktualisiert (Promotion).
 # ============================================================
 
 images:
   backend:
     repository: ghcr.io/mikegarda/user_mgmt_service-backend
-    tag: 0ad0f28
+    tag: latest
   frontend:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
-    tag: 0ad0f28
+    tag: latest
   postgres: postgres:16-alpine
+
 backend:
   replicas: 1
   port: 8080
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits:   { cpu: 400m, memory: 512Mi }
+
 frontend:
   replicas: 1
   port: 3000
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { cpu: 300m, memory: 384Mi }
+
 db:
   replicas: 1
   port: 5432
   storage: 1Gi
   mountPath: /var/lib/postgresql
-# Nicht-sensible Konfiguration -> ConfigMap
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits:   { cpu: 400m, memory: 512Mi }
+
 config:
   SPRING_DATASOURCE_URL: "jdbc:postgresql://db:5432/postgres"
   SPRING_DATASOURCE_USERNAME: "postgres"
@@ -32,8 +45,7 @@ config:
   NEXT_PUBLIC_API_URL: "http://backend:8080"
   POSTGRES_USER: "postgres"
   POSTGRES_DB: "postgres"
-# Ingress fuer DigitalOcean (nginx). Ein Pfad -> Frontend.
-# Das Backend wird cluster-intern ueber http://backend:8080 angesprochen (BFF).
+
 ingress:
   className: nginx
   annotations: {}
@@ -41,6 +53,14 @@ ingress:
     - path: /
       service: frontend
       port: 3000
-# HINWEIS: Das Secret 'app-secret' (DB-Passwort + JWT-Secret) wird NICHT vom Chart
-# verwaltet, sondern einmalig im Cluster angelegt (setup-gitops.ps1) - damit keine
-# Geheimnisse im Git liegen. Die Deployments referenzieren es nur ueber den Namen.
+
+# --- Aufgabe 5: Ressourcen-Deckel pro Namespace ---
+resourceQuota:
+  enabled: true
+  requests: { cpu: "1", memory: 1Gi }
+  limits:   { cpu: "2", memory: 2Gi }
+
+# --- Aufgabe 5: Netzwerk-Isolation zwischen Namespaces ---
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx   # Namespace des nginx Ingress-Controllers

@@ -1,0 +1,30 @@
+# ============================================================
+# STAGING-Umgebung (Namespace user-mgmt-staging)
+# Bewusst kleine Ressourcen, je 1 Replica.
+# ============================================================
+
+backend:
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits:   { cpu: 300m, memory: 384Mi }
+
+frontend:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m,  memory: 128Mi }
+    limits:   { cpu: 250m, memory: 256Mi }
+
+db:
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits:   { cpu: 300m, memory: 384Mi }
+
+resourceQuota:
+  enabled: true
+  requests: { cpu: "1",  memory: 1Gi }
+  limits:   { cpu: "2",  memory: 2Gi }
+
+networkPolicy:
+  enabled: true
