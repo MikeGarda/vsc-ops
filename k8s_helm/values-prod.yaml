@@ -28,3 +28,5 @@ resourceQuota:
 
 networkPolicy:
   enabled: true
+  ingressNamespace: ingress-nginx
+  dnsNamespace: kube-system

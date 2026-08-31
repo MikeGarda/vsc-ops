@@ -1,6 +1,5 @@
 {{- if .Values.networkPolicy.enabled }}
-# 1) Isolation: Pods nehmen NUR Verbindungen aus dem GLEICHEN Namespace an.
-#    Damit ist Traffic aus anderen Namespaces (z.B. staging <-> prod) blockiert.
+# 1) Nur GLEICHER Namespace - eingehend UND ausgehend.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -8,15 +7,40 @@ metadata:
   labels:
     {{- include "user-mgmt.labels" . | nindent 4 }}
 spec:
-  podSelector: {}          # gilt fuer alle Pods im Namespace
+  podSelector: {}
   policyTypes:
     - Ingress
+    - Egress
   ingress:
     - from:
-        - podSelector: {}  # nur Absender aus DEMSELBEN Namespace
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
 ---
-# 2) Ausnahme: Der nginx Ingress-Controller (anderer Namespace) darf das
-#    Frontend erreichen - sonst waere die App von aussen nicht aufrufbar.
+# 2) DNS-Ausnahme (Egress) - sonst keine Namensauflösung.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  labels:
+    {{- include "user-mgmt.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.dnsNamespace }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# 3) Ingress-Ausnahme: nginx-Controller darf das Frontend erreichen.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
