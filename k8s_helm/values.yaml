@@ -19,6 +19,7 @@ backend:
     minReplicas: 1
     maxReplicas: 6
     targetCPUUtilizationPercentage: 75
+    targetMemoryUtilizationPercentage: 80
 
 frontend:
   replicas: 1
