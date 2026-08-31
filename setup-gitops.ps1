@@ -32,7 +32,7 @@ if ($CreateCluster) {
   if ($ClusterName -eq "") { throw "-CreateCluster benoetigt -ClusterName." }
   Write-Host "==> Erstelle DOKS-Cluster '$ClusterName' ($NodeCount x $NodeSize)..." -ForegroundColor Cyan
   doctl kubernetes cluster create $ClusterName --region $Region `
-    --node-pool "name=worker-pool;size=$NodeSize;count=$NodeCount" --wait | Out-Host
+    --node-pool "name=worker-pool;size=$NodeSize;count=$NodeCount" --1-clicks metrics-server --wait | Out-Host
 } elseif ($ClusterName -ne "") {
   doctl kubernetes cluster kubeconfig save $ClusterName | Out-Host
 }
