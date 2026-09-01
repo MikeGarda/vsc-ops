@@ -12,21 +12,38 @@ images:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
     tag: b2f474d
   postgres: postgres:16-alpine
+
+# Backend: KEIN 'replicas' - die Replica-Zahl wird vom HPA gesteuert (Aufgabe 6).
 backend:
   port: 8080
-  autoscaling:
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits:   { cpu: 400m, memory: 512Mi }
+  autoscaling:                       # --- Aufgabe 6: HPA ---
+    enabled: true
     minReplicas: 1
-    maxReplicas: 6
-    targetCPUUtilizationPercentage: 75
-    targetMemoryUtilizationPercentage: 80
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:               # --- Aufgabe 6: PDB ---
+    enabled: true
+    minAvailable: 1
+
 frontend:
   replicas: 1
   port: 3000
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { cpu: 300m, memory: 384Mi }
+
 db:
   replicas: 1
   port: 5432
   storage: 1Gi
   mountPath: /var/lib/postgresql
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits:   { cpu: 400m, memory: 512Mi }
+
 config:
   SPRING_DATASOURCE_URL: "jdbc:postgresql://db:5432/postgres"
   SPRING_DATASOURCE_USERNAME: "postgres"
@@ -36,6 +53,7 @@ config:
   NEXT_PUBLIC_API_URL: "http://backend:8080"
   POSTGRES_USER: "postgres"
   POSTGRES_DB: "postgres"
+
 ingress:
   className: nginx
   annotations: {}
@@ -43,12 +61,15 @@ ingress:
     - path: /
       service: frontend
       port: 3000
+
 # --- Aufgabe 5: Ressourcen-Deckel pro Namespace ---
 resourceQuota:
   enabled: true
-  requests: {cpu: "1", memory: 1Gi}
-  limits: {cpu: "2", memory: 2Gi}
+  requests: { cpu: "1", memory: 1Gi }
+  limits:   { cpu: "2", memory: 2Gi }
+
 # --- Aufgabe 5: Netzwerk-Isolation zwischen Namespaces ---
 networkPolicy:
   enabled: true
-  ingressNamespace: ingress-nginx # Namespace des nginx Ingress-Controllers
+  ingressNamespace: ingress-nginx
+  dnsNamespace: kube-system

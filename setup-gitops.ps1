@@ -49,6 +49,14 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx `
   --set controller.publishService.enabled=true | Out-Host
 kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=180s | Out-Host
 
+# 2b) metrics-server (Aufgabe 6: Messwerte fuer den HPA)
+Write-Host "==> metrics-server installieren (fuer HPA)..." -ForegroundColor Cyan
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml | Out-Host
+# Auf DOKS: Kubelet-Zertifikate nicht strikt pruefen, sonst wird der Server nicht 'ready'
+kubectl patch deployment metrics-server -n kube-system --type=json `
+  -p '[{\"op\":\"add\",\"path\":\"/spec/template/spec/containers/0/args/-\",\"value\":\"--kubelet-insecure-tls\"}]' | Out-Host
+kubectl rollout status deployment/metrics-server -n kube-system --timeout=180s | Out-Host
+
 # 3) ArgoCD
 Write-Host "==> ArgoCD installieren..." -ForegroundColor Cyan
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f - | Out-Host
