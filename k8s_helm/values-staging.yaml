@@ -34,3 +34,8 @@ networkPolicy:
   enabled: true
   ingressNamespace: ingress-nginx
   dnsNamespace: kube-system
+
+# Staging bekommt KEINEN Ingress (sonst Host-Kollision mit prod auf "_"/"/").
+# Staging ist intern per Port-Forward testbar.
+ingress:
+  enabled: false
