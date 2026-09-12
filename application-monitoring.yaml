@@ -1,0 +1,43 @@
+# ============================================================
+# Orchestrierung & Observability / Aufgabe 1:
+# ArgoCD-Application für den Monitoring-Stack (kube-prometheus-stack)
+# im Namespace "monitoring".
+#
+# Multi-Source:
+#   1) Helm-Chart aus dem prometheus-community Repository
+#      (in ArgoCD registriert via argocd-repository-prometheus-community.yaml)
+#   2) Die eigene values.yaml aus diesem Git-Repository (monitoring/values.yaml)
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # 1) Helm-Chart kube-prometheus-stack (Version gepinnt -> reproduzierbares GitOps)
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 83.6.0
+      helm:
+        releaseName: kube-prometheus-stack
+        valueFiles:
+          - $ops/monitoring/values.yaml
+          - $ops/monitoring/grafana-dashboards.yaml
+    # 2) Eigene values.yaml aus dem Ops-Repository (ref "ops")
+    - repoURL: https://github.com/MikeGarda/vsc-ops.git
+      targetRevision: main
+      ref: ops
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Die CRDs des Stacks sind zu gross fuer Client-Side-Apply
+      # (Annotation-Limit) -> Server-Side-Apply verwenden.
+      - ServerSideApply=true

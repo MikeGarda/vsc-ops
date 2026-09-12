@@ -1,0 +1,42 @@
+# ============================================================
+# Orchestrierung & Observability / Aufgabe 1
+# EIGENE values.yaml für den Monitoring-Stack (kube-prometheus-stack).
+#
+# Die ArgoCD-Application "monitoring" (application-monitoring.yaml)
+# installiert das Helm-Chart prometheus-community/kube-prometheus-stack
+# in den Namespace "monitoring" und übergibt exakt diese Datei als Values.
+# ============================================================
+
+prometheus:
+  prometheusSpec:
+    # ServiceMonitors, PodMonitors und PrometheusRules aus ALLEN Namespaces
+    # auswählen (unabhängig von Helm-Release-Labels). Damit erkennt Prometheus
+    # auch den ServiceMonitor des user_mgmt_service in user-mgmt-staging/prod.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    # Aufbewahrung & Ressourcen (kleiner DOKS-Cluster)
+    retention: 7d
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+    # Persistente Ablage der Metriken (Default-StorageClass von DOKS)
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+alertmanager:
+  # Alertmanager läuft mit (Grundlage für die Alarmierung aus Aufgabe 1;
+  # Receiver/Benachrichtigungskanal wird separat konfiguriert).
+  enabled: true
+
+# Die Grafana-Konfiguration inkl. der zwei geforderten Dashboards liegt in
+# einem eigenen File: monitoring/grafana-dashboards.yaml
+# (wird von application-monitoring.yaml als zweite values-Datei gemergt).

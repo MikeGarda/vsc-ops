@@ -67,3 +67,12 @@ networkPolicy:
   enabled: true
   ingressNamespace: ingress-nginx
   dnsNamespace: kube-system
+  # Orchestrierung & Observability / Aufgabe 1: Prometheus-Scrape aus diesem
+  # Namespace auf die Backend-Metriken erlauben (siehe allow-monitoring).
+  monitoringNamespace: monitoring
+# --- Orchestrierung & Observability / Aufgabe 1: Monitoring ---
+# Erzeugt einen ServiceMonitor für das Backend, damit Prometheus die
+# Applikationsmetriken (Request Rate, Response Time, Error Rate) erfasst.
+monitoring:
+  enabled: true
+  scrapeInterval: 30s

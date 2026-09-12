@@ -63,6 +63,12 @@ kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f - | 
 kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml | Out-Host
 kubectl rollout status deployment/argocd-server -n argocd --timeout=300s | Out-Host
 
+# 3b) Orchestrierung & Observability / Aufgabe 1: Monitoring vorbereiten
+# Helm-Repository prometheus-community in ArgoCD registrieren (Chart-Quelle
+# fuer den kube-prometheus-stack, siehe application-monitoring.yaml).
+Write-Host "==> ArgoCD Helm-Repository (prometheus-community) registrieren..." -ForegroundColor Cyan
+kubectl apply -f .\argocd-repository-prometheus-community.yaml | Out-Host
+
 # 4) Secrets (einmalig erzeugt/gespeichert) je Namespace anlegen
 $secretFile = ".\do-secrets.json"
 if (Test-Path $secretFile) {
@@ -82,9 +88,11 @@ foreach ($e in $envs) {
     --dry-run=client -o yaml | kubectl apply -f - | Out-Host
 }
 
-# 5) Beide ArgoCD-Applications anwenden
-Write-Host "==> ArgoCD-Applications (staging + prod) anwenden..." -ForegroundColor Cyan
+# 5) ArgoCD-Applications (staging + prod + monitoring) anwenden
+Write-Host "==> ArgoCD-Applications (staging + prod + monitoring) anwenden..." -ForegroundColor Cyan
 foreach ($e in $envs) { kubectl apply -f $e.app | Out-Host }
+# Orchestrierung & Observability / Aufgabe 1: kube-prometheus-stack (Namespace "monitoring")
+kubectl apply -f .\application-monitoring.yaml | Out-Host
 
 # 6) Zugang ausgeben
 Write-Host "`n===================== FERTIG =====================" -ForegroundColor Green
@@ -94,4 +102,7 @@ Write-Host "ArgoCD Login:  admin  /  $pw" -ForegroundColor Cyan
 Write-Host "Dashboard:     kubectl port-forward svc/argocd-server -n argocd 8080:443  -> https://localhost:8080" -ForegroundColor Cyan
 Write-Host "App-URL:       kubectl get svc ingress-nginx-controller -n ingress-nginx  (EXTERNAL-IP)" -ForegroundColor Cyan
 Write-Host "Namespaces:    user-mgmt-staging  &  user-mgmt-prod" -ForegroundColor Cyan
+Write-Host "Grafana:       kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3000:80" -ForegroundColor Cyan
+Write-Host "               Login: admin / prom-operator (Default des kube-prometheus-stack)" -ForegroundColor Cyan
+Write-Host "Prometheus:    kubectl port-forward svc/kube-prometheus-stack-prometheus -n monitoring 9090:9090" -ForegroundColor Cyan
 Write-Host "=================================================`n" -ForegroundColor Green
