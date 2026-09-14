@@ -1,16 +1,17 @@
 # ============================================================
 # BASIS-Werte (Defaults). Werden je Umgebung von
 # values-staging.yaml / values-prod.yaml ueberschrieben.
-# images.*.tag wird von der CI-Pipeline aktualisiert (Promotion).
+# images.*.tag wird von der CI-Pipeline aktualisiert (Promotion) -
+# seit der 2-Branch-Strategie ausschliesslich in den Umgebungsdateien
+# (values-staging.yaml / values-prod.yaml), nicht mehr hier.
 # ============================================================
 
+# images: Hier liegt nur das Postgres-Image (Default fuer beide Umgebungen).
+# Backend-/Frontend-Images (Repository + Tag) werden ausschliesslich in
+# values-staging.yaml / values-prod.yaml verwaltet - dorthin schreibt die
+# CI-Pipeline bei der Promotion. Bewusst KEINE Defaults hier, damit es
+# keine zweite, veraltete Tag-Quelle gibt (Single Source of Truth).
 images:
-  backend:
-    repository: ghcr.io/mikegarda/user_mgmt_service-backend
-    tag: 5fe99b6
-  frontend:
-    repository: ghcr.io/mikegarda/user_mgmt_service-frontend
-    tag: 5fe99b6
   postgres: postgres:16-alpine
 # Backend: KEIN 'replicas' - die Replica-Zahl wird vom HPA gesteuert (Aufgabe 6).
 backend:
