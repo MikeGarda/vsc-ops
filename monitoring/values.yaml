@@ -37,6 +37,19 @@ alertmanager:
   # Receiver/Benachrichtigungskanal wird separat konfiguriert).
   enabled: true
 
-# Die Grafana-Konfiguration inkl. der zwei geforderten Dashboards liegt in
-# einem eigenen File: monitoring/grafana-dashboards.yaml
+# Orchestrierung & Observability / Aufgabe 1:
+# Die Grafana-Zugangsdaten liegen NICHT in dieser Datei (kein Plaintext im
+# Repository), sondern im Kubernetes-Secret "grafana-admin-credentials"
+# (Namespace "monitoring"). Das Secret wird beim Bootstrap erzeugt
+# (setup-gitops.ps1, Schritt 4b) bzw. lokal VOR der Installation mit:
+#   kubectl create secret generic grafana-admin-credentials -n monitoring \
+#     --from-literal=admin-user=<user> --from-literal=admin-password=<passwort>
+grafana:
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+
+# Die weitere Grafana-Konfiguration inkl. der zwei geforderten Dashboards
+# liegt in einem eigenen File: monitoring/grafana-dashboards.yaml
 # (wird von application-monitoring.yaml als zweite values-Datei gemergt).

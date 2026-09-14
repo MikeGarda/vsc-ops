@@ -2,8 +2,8 @@
 <#
 .SYNOPSIS
   Einmalige GitOps-Einrichtung auf DigitalOcean fuer ZWEI Umgebungen (staging + prod):
-  nginx-Ingress + ArgoCD installieren, je Namespace ein App-Secret anlegen,
-  beide ArgoCD-Applications anwenden.
+  nginx-Ingress + ArgoCD installieren, Secrets anlegen (App + Grafana-Login),
+  alle ArgoCD-Applications anwenden (staging, prod, monitoring).
 
 .BEISPIELE
   .\setup-gitops.ps1 -ClusterName teko-doks -CreateCluster -NodeCount 3
@@ -80,12 +80,40 @@ if (Test-Path $secretFile) {
   $s | ConvertTo-Json | Set-Content $secretFile -Encoding utf8
   Write-Host "   do-secrets.json erzeugt -> NICHT committen (.gitignore)!" -ForegroundColor Yellow
 }
+# Grafana-Passwort: einmalig erzeugen und in do-secrets.json nachtragen,
+# damit es bei spaeteren Laeufen wiederverwendet wird (kein Plaintext im Repo).
+if (-not $s.PSObject.Properties['GRAFANA_PASSWORD']) {
+  $s | Add-Member -NotePropertyName GRAFANA_PASSWORD `
+    -NotePropertyValue (-join ((1..24) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) }))
+  $s | ConvertTo-Json | Set-Content $secretFile -Encoding utf8
+  Write-Host "   do-secrets.json um GRAFANA_PASSWORD erweitert." -ForegroundColor Yellow
+}
 foreach ($e in $envs) {
   kubectl create namespace $e.ns --dry-run=client -o yaml | kubectl apply -f - | Out-Host
   kubectl create secret generic app-secret -n $e.ns `
     --from-literal=SPRING_DATASOURCE_PASSWORD="$($s.DB_PASSWORD)" `
     --from-literal=JWT_SECRET="$($s.JWT_SECRET)" `
     --dry-run=client -o yaml | kubectl apply -f - | Out-Host
+}
+
+# 4b) Orchestrierung & Observability / Aufgabe 1: Grafana-Login als Kubernetes-Secret.
+# Kein Plaintext in values.yaml; der kube-prometheus-stack liest die Zugangsdaten
+# ueber grafana.admin.existingSecret (monitoring/values.yaml). Das Secret muss VOR
+# dem Start der Grafana-Pods existieren, deshalb hier (vor Schritt 5) anlegen.
+kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f - | Out-Host
+kubectl create secret generic grafana-admin-credentials -n monitoring `
+  --from-literal=admin-user="admin" `
+  --from-literal=admin-password="$($s.GRAFANA_PASSWORD)" `
+  --dry-run=client -o yaml | kubectl apply -f - | Out-Host
+
+# Optional: Zugangsdaten zusaetzlich als GitHub-Secrets im Ops-Repo ablegen
+# (benoetigt eine eingeloggte gh-CLI). Damit sind sie auch ueber GitHub verfuegbar.
+if (Get-Command gh -ErrorAction SilentlyContinue) {
+  gh secret set GRAFANA_ADMIN_USER     --repo MikeGarda/vsc-ops --body "admin"                  2>$null | Out-Null
+  gh secret set GRAFANA_ADMIN_PASSWORD --repo MikeGarda/vsc-ops --body "$($s.GRAFANA_PASSWORD)" 2>$null | Out-Null
+  Write-Host "   GitHub-Secrets GRAFANA_ADMIN_USER/GRAFANA_ADMIN_PASSWORD gesetzt (MikeGarda/vsc-ops)." -ForegroundColor Yellow
+} else {
+  Write-Host "   Hinweis: gh-CLI fehlt -> GitHub-Secrets nicht gesetzt (optional)." -ForegroundColor DarkGray
 }
 
 # 5) ArgoCD-Applications (staging + prod + monitoring) anwenden
@@ -103,6 +131,7 @@ Write-Host "Dashboard:     kubectl port-forward svc/argocd-server -n argocd 8080
 Write-Host "App-URL:       kubectl get svc ingress-nginx-controller -n ingress-nginx  (EXTERNAL-IP)" -ForegroundColor Cyan
 Write-Host "Namespaces:    user-mgmt-staging  &  user-mgmt-prod" -ForegroundColor Cyan
 Write-Host "Grafana:       kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3000:80" -ForegroundColor Cyan
-Write-Host "               Login: admin / prom-operator (Default des kube-prometheus-stack)" -ForegroundColor Cyan
+Write-Host "               Login: admin / $($s.GRAFANA_PASSWORD)  (Secret: grafana-admin-credentials)" -ForegroundColor Cyan
+Write-Host "               Passwort erneut anzeigen: kubectl -n monitoring get secret grafana-admin-credentials -o jsonpath='{.data.admin-password}' | base64 -d" -ForegroundColor Cyan
 Write-Host "Prometheus:    kubectl port-forward svc/kube-prometheus-stack-prometheus -n monitoring 9090:9090" -ForegroundColor Cyan
 Write-Host "=================================================`n" -ForegroundColor Green
