@@ -7,10 +7,10 @@
 images:
   backend:
     repository: ghcr.io/mikegarda/user_mgmt_service-backend
-    tag: c6b1636
+    tag: 5fe99b6
   frontend:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
-    tag: c6b1636
+    tag: 5fe99b6
   postgres: postgres:16-alpine
 # Backend: KEIN 'replicas' - die Replica-Zahl wird vom HPA gesteuert (Aufgabe 6).
 backend:
@@ -50,7 +50,7 @@ config:
   POSTGRES_USER: "postgres"
   POSTGRES_DB: "postgres"
 ingress:
-  enabled: true          # Default; wird pro Umgebung ueberschrieben (nur prod hat einen Ingress)
+  enabled: true # Default; wird pro Umgebung ueberschrieben (nur prod hat einen Ingress)
   className: nginx
   annotations: {}
   paths:
