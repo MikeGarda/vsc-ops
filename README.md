@@ -13,6 +13,9 @@ in diesem Repo. Deployt wird **nie manuell** – ausschliesslich über die
 | [MikeGarda/user_mgmt_service](https://github.com/MikeGarda/user_mgmt_service) | App-Code (Spring Boot Backend, Next.js Frontend) + GitHub-Pipelines |
 | [MikeGarda/vsc-ops](https://github.com/MikeGarda/vsc-ops) | Dieses Repo: GitOps-State (ArgoCD, Helm, Monitoring, Bootstrap) |
 
+## Dokumentationen
+- [Prometheus](docs/Prometheus.md)
+
 ## Branch-Modell
 
 Das Deployment läuft über **zwei Branches im App-Repo**; pro Branch gibt
