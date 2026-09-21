@@ -1,405 +1,380 @@
-# ============================================================
-# Orchestrierung & Observability / Aufgabe 1
-# Grafana-Konfiguration für den Monitoring-Stack (kube-prometheus-stack).
-#
-# Diese Datei wird von application-monitoring.yaml als ZUSÄTZLICHE
-# values-Datei neben monitoring/values.yaml übergeben (Helm merged beide).
-# Sie enthält die zwei geforderten Dashboards, die automatisch als
-# ConfigMaps provisioniert und in Grafana geladen werden:
-#   1) "Kubernetes Cluster & Pods"   -> Cluster- und Pod-Metriken (CPU/Memory)
-#   2) "user_mgmt_service Backend"   -> Request Rate, Response Time, Error Rate
-# ============================================================
-
-grafana:
-  enabled: true
-  sidecar:
-    dashboards:
-      # ConfigMaps mit diesem Label werden automatisch als Dashboards geladen.
-      enabled: true
-      label: grafana_dashboard
-    datasources:
-      # Name/UID der Prometheus-Datasource fixieren, damit die Dashboards
-      # unten die Datenquelle eindeutig referenzieren können.
-      defaultDatasourceName: Prometheus
-      uid: prometheus
-  # --- Dashboard 1: Kubernetes-Cluster und Pods (CPU-/Memory-Auslastung) ---
-  dashboards:
-    kubernetes:
-      k8s-cluster-pods:
-        folder: Kubernetes
-        json: |
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+  labels:
+    grafana-dashboards: "1"
+data:
+  cluster-pods.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "graphTooltip": 1,
+      "uid": "k8s-cluster-pods",
+      "title": "Kubernetes Cluster & Pods",
+      "tags": ["kubernetes", "orchestrierung-observability"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": {
+        "list": [
           {
-            "annotations": { "list": [] },
-            "editable": true,
-            "graphTooltip": 1,
-            "uid": "k8s-cluster-pods",
-            "title": "Kubernetes Cluster & Pods",
-            "tags": ["kubernetes", "orchestrierung-observability"],
-            "timezone": "browser",
-            "schemaVersion": 39,
-            "version": 1,
-            "refresh": "30s",
-            "time": { "from": "now-1h", "to": "now" },
-            "templating": {
-              "list": [
-                {
-                  "name": "namespace",
-                  "label": "Namespace",
-                  "type": "query",
-                  "datasource": { "type": "prometheus", "uid": "prometheus" },
-                  "query": "label_values(kube_pod_info, namespace)",
-                  "refresh": 2,
-                  "includeAll": true,
-                  "allValue": ".+",
-                  "multi": false,
-                  "current": { "text": "All", "value": "$__all" },
-                  "sort": 1
-                },
-                {
-                  "name": "pod",
-                  "label": "Pod",
-                  "type": "query",
-                  "datasource": { "type": "prometheus", "uid": "prometheus" },
-                  "query": "label_values(kube_pod_info{namespace=~\"$namespace\"}, pod)",
-                  "refresh": 2,
-                  "includeAll": true,
-                  "allValue": ".+",
-                  "multi": true,
-                  "current": { "text": "All", "value": "$__all" },
-                  "sort": 1
-                }
-              ]
-            },
-            "panels": [
-              {
-                "id": 1,
-                "type": "timeseries",
-                "title": "Cluster CPU-Auslastung (Nodes)",
-                "description": "CPU-Auslastung der Worker-Nodes (node-exporter).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 7, "w": 12, "x": 0, "y": 0 },
-                "fieldConfig": {
-                  "defaults": {
-                    "unit": "percentunit",
-                    "min": 0,
-                    "max": 1,
-                    "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "red", "value": 0.9 } ] }
-                  },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))", "legendFormat": "Cluster gesamt" },
-                  { "refId": "B", "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance)", "legendFormat": "{{instance}}" }
-                ]
-              },
-              {
-                "id": 2,
-                "type": "timeseries",
-                "title": "Cluster Memory-Auslastung (Nodes)",
-                "description": "Memory-Auslastung der Worker-Nodes (ohne verfügbaren Cache).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 7, "w": 12, "x": 12, "y": 0 },
-                "fieldConfig": {
-                  "defaults": {
-                    "unit": "percentunit",
-                    "min": 0,
-                    "max": 1,
-                    "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.75 }, { "color": "red", "value": 0.9 } ] }
-                  },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)", "legendFormat": "Cluster gesamt" },
-                  { "refId": "B", "expr": "1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes", "legendFormat": "{{instance}}" }
-                ]
-              },
-              {
-                "id": 3,
-                "type": "timeseries",
-                "title": "Laufende Pods je Namespace",
-                "description": "Anzahl Pods im Zustand Running (kube-state-metrics).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 7, "w": 12, "x": 0, "y": 7 },
-                "fieldConfig": {
-                  "defaults": { "unit": "short", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(kube_pod_status_phase{phase=\"Running\"}) by (namespace)", "legendFormat": "{{namespace}}" }
-                ]
-              },
-              {
-                "id": 4,
-                "type": "timeseries",
-                "title": "Pod CPU-Auslastung",
-                "description": "Effektive CPU-Nutzung je Pod in Kernen (cAdvisor).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 7, "w": 12, "x": 12, "y": 7 },
-                "fieldConfig": {
-                  "defaults": { "unit": "none", "min": 0, "custom": { "fillOpacity": 10 } },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}[5m])) by (pod)", "legendFormat": "{{pod}}" }
-                ]
-              },
-              {
-                "id": 5,
-                "type": "timeseries",
-                "title": "Pod Memory-Auslastung (Working Set)",
-                "description": "Relevanter Memory-Verbrauch je Pod, Basis für das OOM-Killing (cAdvisor).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
-                "fieldConfig": {
-                  "defaults": { "unit": "bytes", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\"}) by (pod)", "legendFormat": "{{pod}}" }
-                ]
-              },
-              {
-                "id": 6,
-                "type": "timeseries",
-                "title": "Pod CPU: Auslastung vs. Requests/Limits",
-                "description": "CPU-Nutzung im Vergleich zu den konfigurierten Requests und Limits je Pod.",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
-                "fieldConfig": {
-                  "defaults": { "unit": "none", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}[5m])) by (pod)", "legendFormat": "{{pod}}" },
-                  { "refId": "B", "expr": "sum(kube_pod_container_resource_requests{namespace=~\"$namespace\", pod=~\"$pod\", resource=\"cpu\"}) by (pod)", "legendFormat": "{{pod}} (Request)" },
-                  { "refId": "C", "expr": "sum(kube_pod_container_resource_limits{namespace=~\"$namespace\", pod=~\"$pod\", resource=\"cpu\"}) by (pod)", "legendFormat": "{{pod}} (Limit)" }
-                ]
-              },
-              {
-                "id": 7,
-                "type": "timeseries",
-                "title": "Pod Memory: Auslastung vs. Requests/Limits",
-                "description": "Memory-Nutzung (Working Set) im Vergleich zu Requests und Limits je Pod.",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 7, "w": 12, "x": 0, "y": 21 },
-                "fieldConfig": {
-                  "defaults": { "unit": "bytes", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\"}) by (pod)", "legendFormat": "{{pod}}" },
-                  { "refId": "B", "expr": "sum(kube_pod_container_resource_requests{namespace=~\"$namespace\", pod=~\"$pod\", resource=\"memory\"}) by (pod)", "legendFormat": "{{pod}} (Request)" },
-                  { "refId": "C", "expr": "sum(kube_pod_container_resource_limits{namespace=~\"$namespace\", pod=~\"$pod\", resource=\"memory\"}) by (pod)", "legendFormat": "{{pod}} (Limit)" }
-                ]
-              },
-              {
-                "id": 8,
-                "type": "timeseries",
-                "title": "Pod Restarts",
-                "description": "Container-Restarts je Pod (Indikator für CrashLoops/OOM).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 7, "w": 12, "x": 12, "y": 21 },
-                "fieldConfig": {
-                  "defaults": { "unit": "short", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\"$pod\"}) by (pod)", "legendFormat": "{{pod}}" }
-                ]
-              }
-            ]
-          }
-    backend:
-      # --- Dashboard 2: user_mgmt_service Backend (Anwendungsmetriken) ---
-      user-mgmt-backend:
-        folder: user_mgmt_service
-        json: |
+            "name": "namespace",
+            "label": "Namespace",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(kube_pod_info, namespace)",
+            "refresh": 2,
+            "includeAll": true,
+            "allValue": ".+",
+            "multi": false,
+            "current": { "text": "All", "value": "$__all" },
+            "sort": 1
+          },
           {
-            "annotations": { "list": [] },
-            "editable": true,
-            "graphTooltip": 1,
-            "uid": "user-mgmt-backend",
-            "title": "user_mgmt_service Backend",
-            "tags": ["user-mgmt", "spring-boot", "orchestrierung-observability"],
-            "timezone": "browser",
-            "schemaVersion": 39,
-            "version": 1,
-            "refresh": "30s",
-            "time": { "from": "now-1h", "to": "now" },
-            "templating": {
-              "list": [
-                {
-                  "name": "namespace",
-                  "label": "Namespace",
-                  "type": "query",
-                  "datasource": { "type": "prometheus", "uid": "prometheus" },
-                  "query": "label_values(http_server_requests_seconds_count, namespace)",
-                  "refresh": 2,
-                  "includeAll": true,
-                  "allValue": ".+",
-                  "multi": false,
-                  "current": { "text": "All", "value": "$__all" },
-                  "sort": 1
-                },
-                {
-                  "name": "pod",
-                  "label": "Pod",
-                  "type": "query",
-                  "datasource": { "type": "prometheus", "uid": "prometheus" },
-                  "query": "label_values(http_server_requests_seconds_count{namespace=~\"$namespace\"}, pod)",
-                  "refresh": 2,
-                  "includeAll": true,
-                  "allValue": ".+",
-                  "multi": true,
-                  "current": { "text": "All", "value": "$__all" },
-                  "sort": 1
-                }
-              ]
-            },
-            "panels": [
-              {
-                "id": 1,
-                "type": "timeseries",
-                "title": "Request Rate",
-                "description": "Eingehende HTTP-Requests pro Sekunde (Micrometer http.server.requests, ohne Actuator-Scrapes).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-                "fieldConfig": {
-                  "defaults": { "unit": "reqps", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[1m]))", "legendFormat": "gesamt" },
-                  { "refId": "B", "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[1m])) by (uri)", "legendFormat": "{{uri}}" }
-                ]
-              },
-              {
-                "id": 2,
-                "type": "timeseries",
-                "title": "Response Time (p50 / p95 / p99)",
-                "description": "Antwortzeiten als Quantile über die Histogramm-Buckets von http.server.requests.",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-                "fieldConfig": {
-                  "defaults": { "unit": "s", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "histogram_quantile(0.5, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[5m])) by (le))", "legendFormat": "p50" },
-                  { "refId": "B", "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[5m])) by (le))", "legendFormat": "p95" },
-                  { "refId": "C", "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[5m])) by (le))", "legendFormat": "p99" }
-                ]
-              },
-              {
-                "id": 3,
-                "type": "timeseries",
-                "title": "Error Rate (HTTP 5xx)",
-                "description": "Anteil der Requests mit HTTP-Status 5xx an allen Requests.",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-                "fieldConfig": {
-                  "defaults": {
-                    "unit": "percent",
-                    "min": 0,
-                    "max": 100,
-                    "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 } ] }
-                  },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "100 * sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\", status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[5m]))", "legendFormat": "Error Rate %" }
-                ]
-              },
-              {
-                "id": 4,
-                "type": "timeseries",
-                "title": "Fehler (HTTP 5xx) je URI",
-                "description": "Absolute Rate der 5xx-Antworten pro Endpoint.",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-                "fieldConfig": {
-                  "defaults": { "unit": "reqps", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", status=~\"5..\"}[1m])) by (uri)", "legendFormat": "{{uri}}" }
-                ]
-              },
-              {
-                "id": 5,
-                "type": "timeseries",
-                "title": "Requests je Statuscode",
-                "description": "Verteilung der HTTP-Statuscodes (2xx/4xx/5xx).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-                "fieldConfig": {
-                  "defaults": { "unit": "reqps", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) by (status)", "legendFormat": "{{status}}" }
-                ]
-              },
-              {
-                "id": 6,
-                "type": "timeseries",
-                "title": "JVM Heap (belegt)",
-                "description": "Belegter Heap-Speicher je Backend-Pod (Micrometer jvm.memory).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-                "fieldConfig": {
-                  "defaults": { "unit": "bytes", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(jvm_memory_used_bytes{namespace=~\"$namespace\", pod=~\"$pod\", area=\"heap\"}) by (pod)", "legendFormat": "{{pod}}" }
-                ]
-              },
-              {
-                "id": 7,
-                "type": "timeseries",
-                "title": "Backend Pod CPU-Auslastung",
-                "description": "CPU-Nutzung der Backend-Pods (relevant für Lasttests und den HPA).",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
-                "fieldConfig": {
-                  "defaults": { "unit": "none", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}[5m])) by (pod)", "legendFormat": "{{pod}}" }
-                ]
-              },
-              {
-                "id": 8,
-                "type": "timeseries",
-                "title": "Backend Pod Memory-Auslastung",
-                "description": "Memory-Nutzung (Working Set) der Backend-Pods.",
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
-                "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
-                "fieldConfig": {
-                  "defaults": { "unit": "bytes", "min": 0 },
-                  "overrides": []
-                },
-                "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-                "targets": [
-                  { "refId": "A", "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\"}) by (pod)", "legendFormat": "{{pod}}" }
-                ]
-              }
-            ]
+            "name": "pod",
+            "label": "Pod",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(kube_pod_info{namespace=~\"$namespace\"}, pod)",
+            "refresh": 2,
+            "includeAll": true,
+            "allValue": ".+",
+            "multi": true,
+            "current": { "text": "All", "value": "$__all" },
+            "sort": 1
           }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Cluster CPU-Auslastung (Nodes)",
+          "description": "CPU-Auslastung der Worker-Nodes (node-exporter).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 0 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "red", "value": 0.9 } ] }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))", "legendFormat": "Cluster gesamt" },
+            { "refId": "B", "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance)", "legendFormat": "{{instance}}" }
+          ]
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Cluster Memory-Auslastung (Nodes)",
+          "description": "Memory-Auslastung der Worker-Nodes (ohne verfügbaren Cache).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 0 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.75 }, { "color": "red", "value": 0.9 } ] }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)", "legendFormat": "Cluster gesamt" },
+            { "refId": "B", "expr": "1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes", "legendFormat": "{{instance}}" }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Laufende Pods je Namespace",
+          "description": "Anzahl Pods im Zustand Running (kube-state-metrics).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 7 },
+          "fieldConfig": {
+            "defaults": { "unit": "short", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(kube_pod_status_phase{phase=\"Running\"}) by (namespace)", "legendFormat": "{{namespace}}" }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Pod CPU-Auslastung",
+          "description": "Effektive CPU-Nutzung je Pod in Kernen (cAdvisor).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 7 },
+          "fieldConfig": {
+            "defaults": { "unit": "none", "min": 0, "custom": { "fillOpacity": 10 } },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}[5m])) by (pod)", "legendFormat": "{{pod}}" }
+          ]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Pod Memory-Auslastung (Working Set)",
+          "description": "Relevanter Memory-Verbrauch je Pod, Basis für das OOM-Killing (cAdvisor).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
+          "fieldConfig": {
+            "defaults": { "unit": "bytes", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\"}) by (pod)", "legendFormat": "{{pod}}" }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Pod CPU: Auslastung vs. Requests/Limits",
+          "description": "CPU-Nutzung im Vergleich zu den konfigurierten Requests und Limits je Pod.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
+          "fieldConfig": {
+            "defaults": { "unit": "none", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}[5m])) by (pod)", "legendFormat": "{{pod}}" },
+            { "refId": "B", "expr": "sum(kube_pod_container_resource_requests{namespace=~\"$namespace\", pod=~\"$pod\", resource=\"cpu\"}) by (pod)", "legendFormat": "{{pod}} (Request)" },
+            { "refId": "C", "expr": "sum(kube_pod_container_resource_limits{namespace=~\"$namespace\", pod=~\"$pod\", resource=\"cpu\"}) by (pod)", "legendFormat": "{{pod}} (Limit)" }
+          ]
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Pod Memory: Auslastung vs. Requests/Limits",
+          "description": "Memory-Nutzung (Working Set) im Vergleich zu Requests und Limits je Pod.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 21 },
+          "fieldConfig": {
+            "defaults": { "unit": "bytes", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\"}) by (pod)", "legendFormat": "{{pod}}" },
+            { "refId": "B", "expr": "sum(kube_pod_container_resource_requests{namespace=~\"$namespace\", pod=~\"$pod\", resource=\"memory\"}) by (pod)", "legendFormat": "{{pod}} (Request)" },
+            { "refId": "C", "expr": "sum(kube_pod_container_resource_limits{namespace=~\"$namespace\", pod=~\"$pod\", resource=\"memory\"}) by (pod)", "legendFormat": "{{pod}} (Limit)" }
+          ]
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Pod Restarts",
+          "description": "Container-Restarts je Pod (Indikator für CrashLoops/OOM).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 21 },
+          "fieldConfig": {
+            "defaults": { "unit": "short", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\"$pod\"}) by (pod)", "legendFormat": "{{pod}}" }
+          ]
+        }
+      ]
+    }
+  user-mgmt-backend.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "graphTooltip": 1,
+      "uid": "user-mgmt-backend",
+      "title": "user_mgmt_service Backend",
+      "tags": ["user-mgmt", "spring-boot", "orchestrierung-observability"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "label": "Namespace",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(http_server_requests_seconds_count, namespace)",
+            "refresh": 2,
+            "includeAll": true,
+            "allValue": ".+",
+            "multi": false,
+            "current": { "text": "All", "value": "$__all" },
+            "sort": 1
+          },
+          {
+            "name": "pod",
+            "label": "Pod",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(http_server_requests_seconds_count{namespace=~\"$namespace\"}, pod)",
+            "refresh": 2,
+            "includeAll": true,
+            "allValue": ".+",
+            "multi": true,
+            "current": { "text": "All", "value": "$__all" },
+            "sort": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Request Rate",
+          "description": "Eingehende HTTP-Requests pro Sekunde (Micrometer http.server.requests, ohne Actuator-Scrapes).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "fieldConfig": {
+            "defaults": { "unit": "reqps", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[1m]))", "legendFormat": "gesamt" },
+            { "refId": "B", "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[1m])) by (uri)", "legendFormat": "{{uri}}" }
+          ]
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Response Time (p50 / p95 / p99)",
+          "description": "Antwortzeiten als Quantile über die Histogramm-Buckets von http.server.requests.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "fieldConfig": {
+            "defaults": { "unit": "s", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "histogram_quantile(0.5, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[5m])) by (le))", "legendFormat": "p50" },
+            { "refId": "B", "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[5m])) by (le))", "legendFormat": "p95" },
+            { "refId": "C", "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[5m])) by (le))", "legendFormat": "p99" }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Error Rate (HTTP 5xx)",
+          "description": "Anteil der Requests mit HTTP-Status 5xx an allen Requests.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 } ] }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "100 * sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\", status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", uri!~\"/actuator/.*\"}[5m]))", "legendFormat": "Error Rate %" }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Fehler (HTTP 5xx) je URI",
+          "description": "Absolute Rate der 5xx-Antworten pro Endpoint.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "fieldConfig": {
+            "defaults": { "unit": "reqps", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\", status=~\"5..\"}[1m])) by (uri)", "legendFormat": "{{uri}}" }
+          ]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Requests je Statuscode",
+          "description": "Verteilung der HTTP-Statuscodes (2xx/4xx/5xx).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "fieldConfig": {
+            "defaults": { "unit": "reqps", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) by (status)", "legendFormat": "{{status}}" }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "JVM Heap (belegt)",
+          "description": "Belegter Heap-Speicher je Backend-Pod (Micrometer jvm.memory).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "fieldConfig": {
+            "defaults": { "unit": "bytes", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(jvm_memory_used_bytes{namespace=~\"$namespace\", pod=~\"$pod\", area=\"heap\"}) by (pod)", "legendFormat": "{{pod}}" }
+          ]
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Backend Pod CPU-Auslastung",
+          "description": "CPU-Nutzung der Backend-Pods (relevant für Lasttests und den HPA).",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+          "fieldConfig": {
+            "defaults": { "unit": "none", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}[5m])) by (pod)", "legendFormat": "{{pod}}" }
+          ]
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Backend Pod Memory-Auslastung",
+          "description": "Memory-Nutzung (Working Set) der Backend-Pods.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "fieldConfig": {
+            "defaults": { "unit": "bytes", "min": 0 },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\"}) by (pod)", "legendFormat": "{{pod}}" }
+          ]
+        }
+      ]
+    }

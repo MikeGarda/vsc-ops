@@ -1,21 +1,9 @@
-# ============================================================
-# Orchestrierung & Observability / Aufgabe 1
-# EIGENE values.yaml für den Monitoring-Stack (kube-prometheus-stack).
-#
-# Die ArgoCD-Application "monitoring" (application-monitoring.yaml)
-# installiert das Helm-Chart prometheus-community/kube-prometheus-stack
-# in den Namespace "monitoring" und übergibt exakt diese Datei als Values.
-# ============================================================
-
 prometheus:
+  enable: true
   prometheusSpec:
-    # ServiceMonitors, PodMonitors und PrometheusRules aus ALLEN Namespaces
-    # auswählen (unabhängig von Helm-Release-Labels). Damit erkennt Prometheus
-    # auch den ServiceMonitor des user_mgmt_service in user-mgmt-staging/prod.
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
-    # Aufbewahrung & Ressourcen (kleiner DOKS-Cluster)
     retention: 7d
     resources:
       requests:
@@ -23,7 +11,6 @@ prometheus:
         memory: 512Mi
       limits:
         memory: 1Gi
-    # Persistente Ablage der Metriken (Default-StorageClass von DOKS)
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -33,23 +20,16 @@ prometheus:
               storage: 5Gi
 
 alertmanager:
-  # Alertmanager läuft mit (Grundlage für die Alarmierung aus Aufgabe 1;
-  # Receiver/Benachrichtigungskanal wird separat konfiguriert).
   enabled: true
 
-# Orchestrierung & Observability / Aufgabe 1:
-# Die Grafana-Zugangsdaten liegen NICHT in dieser Datei (kein Plaintext im
-# Repository), sondern im Kubernetes-Secret "grafana-admin-credentials"
-# (Namespace "monitoring"). Das Secret wird beim Bootstrap erzeugt
-# (setup-gitops.ps1, Schritt 4b) bzw. lokal VOR der Installation mit:
-#   kubectl create secret generic grafana-admin-credentials -n monitoring \
-#     --from-literal=admin-user=<user> --from-literal=admin-password=<passwort>
 grafana:
+  enable: true
+  defaultDashboardsEnabled: false
   admin:
     existingSecret: grafana-admin-credentials
     userKey: admin-user
     passwordKey: admin-password
-
-# Die weitere Grafana-Konfiguration inkl. der zwei geforderten Dashboards
-# liegt in einem eigenen File: monitoring/grafana-dashboards.yaml
-# (wird von application-monitoring.yaml als zweite values-Datei gemergt).
+  sidecar:
+    dashboards:
+      provider:
+        foldersFromFileStructure: true

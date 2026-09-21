@@ -1,9 +1,3 @@
-# ============================================================
-# Orchestrierung & Observability / Aufgabe 1:
-# Registriert das prometheus-community Helm-Repository in ArgoCD,
-# damit application-monitoring.yaml den kube-prometheus-stack-Chart
-# als Chart-Quelle verwenden kann.
-# ============================================================
 apiVersion: v1
 kind: Secret
 metadata:
