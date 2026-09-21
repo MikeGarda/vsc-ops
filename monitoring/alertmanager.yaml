@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: alertmanager-config
+  name: monitoring-alertmanager
   namespace: monitoring
 data:
   alertmanager.yaml: |
