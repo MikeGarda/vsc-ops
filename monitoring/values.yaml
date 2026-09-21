@@ -24,9 +24,12 @@ alertmanager:
 
   createConfigMap: false
 
-  extraSecretMounts:
+  extraVolumes:
     - name: ntfy-secret
-      secretName: ntfy-token
+      secret:
+        secretName: ntfy-token
+  extraMounts:
+    - name: ntfy-secret
       mountPath: '/etc/alertmanager/secrets'
       readOnly: true
 
