@@ -21,6 +21,9 @@ prometheus:
 
 alertmanager:
   enabled: true
+
+  createConfigMap: false
+
   extraSecretMounts:
     - name: ntfy-secret
       secretName: ntfy-token
