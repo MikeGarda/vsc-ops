@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: monitoring-alertmanager
+  name: kube-prometheus-stack-alertmanager  # muss <<release>>-alertmanager heissen wie releaseName in application-monitoring.yaml
   namespace: monitoring
 data:
   alertmanager.yaml: |
