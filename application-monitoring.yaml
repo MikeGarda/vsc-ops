@@ -13,8 +13,8 @@ spec:
         releaseName: kube-prometheus-stack
         valueFiles:
           - $ops/monitoring/values.yaml
-          - $ops/monitoring/grafana-dashboards.yaml
     - repoURL: https://github.com/MikeGarda/vsc-ops.git
+      path: monitoring
       targetRevision: main
       ref: ops
   destination:
