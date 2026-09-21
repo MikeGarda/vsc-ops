@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  alertmanager.yaml: |
+    global:
+      resolve_timeout: 5m
+
+    route:
+      group_by: ['alertname']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'ntfy-k8s'
+
+    receivers:
+      - name: 'ntfy-k8s'
+        webhook_configs:
+          - url: 'https://ntfy.everyonehasabadday.ch'
+            send_resolved: true
+            http_config:
+              bearer_token_file: '/etc/alertmanager/secrets/ntfy-token'
+              headers:
+                Content-Type: 'application/json'
+                X-Markdown: 'yes'
+
+    templates:
+      - '/etc/alertmanager/templates/ntfy.tmpl'
+
+  ntfy.tmpl: |
+    {{ define "webhook.tmpl" -}}
+    {{- $title := "" -}}
+    {{- $message := "" -}}
+    {{- range $i, $a := .alerts -}}
+    {{-   $t := "" -}}
+    {{-   with $a.annotations.title -}}
+    {{-     $t = . -}}
+    {{-   end -}}
+    {{-   if not $t -}}
+    {{-     $t = $a.labels.alertname -}}
+    {{-   end -}}
+    {{-   if $i -}}
+    {{-     $title = printf "%s, %s" $title $t -}}
+    {{-   else -}}
+    {{-     $title = $t -}}
+    {{-   end -}}
+    {{-   $m := "" -}}
+    {{-   with $a.annotations.message -}}
+    {{-     $m = . -}}
+    {{-   end -}}
+    {{-   if not $m -}}
+    {{-     $m = $a.annotations.description -}}
+    {{-   end -}}
+    {{-   $m = printf "%s: %s" $a.labels.alertname $m -}}
+    {{-   if $i -}}
+    {{-     $message = printf "%s\n%s" $message $m -}}
+    {{-   else -}}
+    {{-     $message = $m -}}
+    {{-   end -}}
+    {{- end -}}
+    {{- $title = printf "%s!" $title -}}
+    {{- printf "{\"topic\": \"k8s\", \"title\": %s, \"message\": %s}" ($title | toJSON) ($message | toJSON) -}}
+    {{- end }}

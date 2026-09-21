@@ -21,6 +21,11 @@ prometheus:
 
 alertmanager:
   enabled: true
+  extraSecretMounts:
+    - name: ntfy-secret
+      secretName: ntfy-token
+      mountPath: '/etc/alertmanager/secrets'
+      readOnly: true
 
 grafana:
   enabled: true
