@@ -12,7 +12,7 @@ spec:
       helm:
         releaseName: kube-prometheus-stack
         valueFiles:
-          - $ops/monitoring/values.yaml
+          - $ops/values.yaml
     - repoURL: https://github.com/MikeGarda/vsc-ops.git
       path: monitoring
       targetRevision: main
