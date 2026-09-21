@@ -1,5 +1,5 @@
 prometheus:
-  enable: true
+  enabled: true
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
@@ -23,7 +23,7 @@ alertmanager:
   enabled: true
 
 grafana:
-  enable: true
+  enabled: true
   defaultDashboardsEnabled: false
   admin:
     existingSecret: grafana-admin-credentials
@@ -32,4 +32,4 @@ grafana:
   sidecar:
     dashboards:
       provider:
-        foldersFromFileStructure: true
+        foldersFromFilesStructure: true

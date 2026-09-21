@@ -4,7 +4,7 @@ metadata:
   name: grafana-dashboards
   namespace: monitoring
   labels:
-    grafana-dashboards: "1"
+    grafana_dashboards: "1"
 data:
   cluster-pods.json: |
     {
