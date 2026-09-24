@@ -1,9 +1,18 @@
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
+# WICHTIG: Der prometheus-operator liest die Alertmanager-Konfiguration NICHT aus
+# einer ConfigMap, sondern aus einem Secret (Feld "configSecret" der Alertmanager-CR).
+# Ist "alertmanagerSpec.configSecret" nicht explizit gesetzt, erwartet der Operator
+# ein Secret mit dem Namen "alertmanager-<crname>" (hier: alertmanager-<<release>>-alertmanager,
+# analog zum releaseName in application-monitoring.yaml). Der kube-prometheus-stack-Helm-Chart
+# legt selbst schon ein Secret mit exakt diesem Namen an (Default-Config, Receiver "null").
+# Da diese Datei als zweite (spaeter aufgeloeste) Quelle der Multi-Source-Application
+# gerendert wird, gewinnt sie gemaess ArgoCD "last source wins" gegenueber dem Helm-Secret.
+type: Opaque
 metadata:
-  name: kube-prometheus-stack-alertmanager  # muss <<release>>-alertmanager heissen wie releaseName in application-monitoring.yaml
+  name: alertmanager-kube-prometheus-stack-alertmanager
   namespace: monitoring
-data:
+stringData:
   alertmanager.yaml: |
     global:
       resolve_timeout: 5m
@@ -21,13 +30,22 @@ data:
           - url: 'https://ntfy.everyonehasabadday.ch'
             send_resolved: true
             http_config:
-              bearer_token_file: '/etc/alertmanager/secrets/ntfy-token'
+              # alertmanagerSpec.secrets: [ntfy-token] (siehe monitoring/values.yaml)
+              # mountet das Secret "ntfy-token" unter /etc/alertmanager/secrets/ntfy-token/
+              # -> die einzelnen Secret-Keys sind Dateien in diesem Verzeichnis.
+              # Der Key im Secret heisst "token" (siehe setup-gitops.sh/.ps1:
+              # kubectl create secret generic ntfy-token --from-literal=token=...).
+              bearer_token_file: '/etc/alertmanager/secrets/ntfy-token/token'
               headers:
                 Content-Type: 'application/json'
                 X-Markdown: 'yes'
 
+    # Das Secret wird vom Operator komplett unter /etc/alertmanager/config gemountet
+    # (Volume "config-volume", siehe StatefulSet des Alertmanager-Operators) - alle
+    # weiteren Keys dieses Secrets (z. B. ntfy.tmpl) landen ebenfalls dort, NICHT
+    # unter /etc/alertmanager/templates/ (dieser Pfad wird nirgends gemountet).
     templates:
-      - '/etc/alertmanager/templates/ntfy.tmpl'
+      - '/etc/alertmanager/config/ntfy.tmpl'
 
   ntfy.tmpl: |
     {{ define "webhook.tmpl" -}}

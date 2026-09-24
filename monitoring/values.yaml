@@ -22,16 +22,19 @@ prometheus:
 alertmanager:
   enabled: true
 
-  createConfigMap: false
-
-  extraVolumes:
-    - name: ntfy-secret
-      secret:
-        secretName: ntfy-token
-  extraMounts:
-    - name: ntfy-secret
-      mountPath: '/etc/alertmanager/secrets'
-      readOnly: true
+  alertmanagerSpec:
+    # secrets (Liste von Secret-NAMEN, keine Volume-Objekte!) werden vom
+    # prometheus-operator automatisch als Volume "secret-<name>" angelegt und
+    # unter /etc/alertmanager/secrets/<name>/ in den Alertmanager-Container
+    # gemountet - das ist der vom Operator vorgesehene Weg, um z. B. den
+    # ntfy-Bearer-Token bereitzustellen (siehe alertmanager.yaml:
+    # bearer_token_file: /etc/alertmanager/secrets/ntfy-token/token).
+    # Die zuvor hier verwendeten Keys "extraVolumes"/"extraMounts" existieren
+    # in den kube-prometheus-stack-Chart-Values NICHT (weder unter
+    # "alertmanager:" noch unter "alertmanager.alertmanagerSpec:") und wurden
+    # von Helm daher stillschweigend ignoriert - das Secret landete nie im Pod.
+    secrets:
+      - ntfy-token
 
 grafana:
   enabled: true
