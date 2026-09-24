@@ -9,10 +9,10 @@
 images:
   backend:
     repository: ghcr.io/mikegarda/user_mgmt_service-backend
-    tag: 098f8d4
+    tag: 5e301a3
   frontend:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
-    tag: 098f8d4
+    tag: 5e301a3
 backend:
   resources:
     requests: {cpu: 200m, memory: 256Mi}
