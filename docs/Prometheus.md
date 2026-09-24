@@ -319,7 +319,7 @@ Labels pro Sample: `namespace`, `pod`, `uri`, `method`, `status`, `outcome`,
 
 #### 4.3.2 Ops-Seite: ServiceMonitor & Discovery (vsc-ops)
 
-**`k8s_helm/templates/servicemonitor.yaml`:**
+**`helm/templates/servicemonitor.yaml`:**
 
 ```yaml
 {{- if .Values.monitoring.enabled }}
@@ -343,7 +343,7 @@ spec:
 {{- end }}
 ```
 
-**Zugehörige Werte in `k8s_helm/values.yaml`:**
+**Zugehörige Werte in `helm/values.yaml`:**
 
 ```yaml
 monitoring:
@@ -373,7 +373,7 @@ gesamten GitOps-Prozess (Pipeline → Values-Promotion → ArgoCD-Sync).
 
 2. **Benannter Service-Port:** Der ServiceMonitor referenziert den Endpunkt
    über den Port-**Namen** `http`. Der Backend-Service definiert diesen
-   explizit (`k8s_helm/templates/backend.yaml`):
+   explizit (`helm/templates/backend.yaml`):
 
    ```yaml
    ports:
@@ -383,7 +383,7 @@ gesamten GitOps-Prozess (Pipeline → Values-Promotion → ArgoCD-Sync).
        targetPort: 8080
    ```
 
-3. **NetworkPolicy-Ausnahme (`k8s_helm/templates/networkpolicy.yaml`):**
+3. **NetworkPolicy-Ausnahme (`helm/templates/networkpolicy.yaml`):**
    Die App-Namespaces sind netzwerkisoliert (Aufgabe 5). Eine gezielte
    Ausnahme erlaubt **nur** dem Namespace `monitoring` den Ingress auf den
    Metrik-Port der Backend-Pods – sonst würde der Scrape ins Leere laufen:
@@ -597,7 +597,7 @@ vsc-ops/
 ├── application-monitoring.yaml                 # ArgoCD-Application -> kube-prometheus-stack (monitoring)
 ├── argocd-repository-prometheus-community.yaml # Helm-Repo-Registrierung in ArgoCD
 ├── setup-gitops.ps1                            # Bootstrap (Namespace, Secrets, Applications)
-├── k8s_helm/
+├── helm/
 │   ├── values.yaml                             # u. a. monitoring.enabled / scrapeInterval
 │   └── templates/
 │       └── servicemonitor.yaml                 # ServiceMonitor für das Backend
@@ -742,10 +742,10 @@ sum(container_memory_working_set_bytes{pod=~"backend-.*"}) by (namespace, pod)
 | vsc-ops | `argocd-repository-prometheus-community.yaml` | Registriert das prometheus-community-Helm-Repo in ArgoCD |
 | vsc-ops | `monitoring/values.yaml` | Eigene Stack-Konfiguration: Discovery-Selektoren, Retention/Storage, Alertmanager, Grafana-Secret |
 | vsc-ops | `monitoring/grafana-dashboards.yaml` | Grafana-Sidecar-Provisioning + die zwei Dashboards (als JSON) |
-| vsc-ops | `k8s_helm/templates/servicemonitor.yaml` | ServiceMonitor für das Backend (`/actuator/prometheus`, 30s) |
-| vsc-ops | `k8s_helm/templates/backend.yaml` | Backend-Service mit benanntem Port `http` (Referenz des ServiceMonitors) |
-| vsc-ops | `k8s_helm/templates/networkpolicy.yaml` | Ausnahme `allow-monitoring`: Scrape-Ingress aus dem Namespace `monitoring` |
-| vsc-ops | `k8s_helm/values.yaml` | `monitoring.enabled`, `monitoring.scrapeInterval`, `networkPolicy.monitoringNamespace` |
+| vsc-ops | `helm/templates/servicemonitor.yaml` | ServiceMonitor für das Backend (`/actuator/prometheus`, 30s) |
+| vsc-ops | `helm/templates/backend.yaml` | Backend-Service mit benanntem Port `http` (Referenz des ServiceMonitors) |
+| vsc-ops | `helm/templates/networkpolicy.yaml` | Ausnahme `allow-monitoring`: Scrape-Ingress aus dem Namespace `monitoring` |
+| vsc-ops | `helm/values.yaml` | `monitoring.enabled`, `monitoring.scrapeInterval`, `networkPolicy.monitoringNamespace` |
 | vsc-ops | `setup-gitops.ps1` | Bootstrap: Helm-Repo-Registrierung, Grafana-Secret, Apply der Monitoring-Application |
 | user_mgmt_service | `build.gradle` | `spring-boot-starter-actuator` + `micrometer-registry-prometheus` |
 | user_mgmt_service | `src/main/resources/application.properties` | Actuator-Exposure, Histogramm-Buckets, Application-Tag |

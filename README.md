@@ -23,8 +23,8 @@ es **eine eigene Pipeline-Datei**:
 
 | Branch (App-Repo) | Rolle | Pipeline (App-Repo) | Umgebung | Promotion-Ziel in diesem Repo | Namespace |
 | --- | --- | --- | --- | --- | --- |
-| `release` | Staging-Branch | `.github/workflows/deploy-staging.yaml` | Staging | `k8s_helm/values-staging.yaml` | `user-mgmt-staging` |
-| `main` | Production-Branch | `.github/workflows/deploy-prod.yaml` | Production | `k8s_helm/values-prod.yaml` | `user-mgmt-prod` |
+| `release` | Staging-Branch | `.github/workflows/deploy-staging.yaml` | Staging | `helm/values-staging.yaml` | `user-mgmt-staging` |
+| `main` | Production-Branch | `.github/workflows/deploy-prod.yaml` | Production | `helm/values-prod.yaml` | `user-mgmt-prod` |
 
 Beide ArgoCD-Applications (`application-staging.yaml`,
 `application-prod.yaml`) beobachten dabei den Branch `main` **dieses**
@@ -48,8 +48,8 @@ flowchart TD
     GHCR[("GitHub Container Registry<br/>ghcr.io/mikegarda/<br/>user_mgmt_service-backend / -frontend")]
 
     subgraph OPS["Ops-Repo: MikeGarda/vsc-ops (Branch main)"]
-        VST["k8s_helm/values-staging.yaml<br/>images.*.tag = Commit-SHA"]
-        VPR["k8s_helm/values-prod.yaml<br/>images.*.tag = Commit-SHA"]
+        VST["helm/values-staging.yaml<br/>images.*.tag = Commit-SHA"]
+        VPR["helm/values-prod.yaml<br/>images.*.tag = Commit-SHA"]
     end
 
     subgraph K8S["DigitalOcean Kubernetes"]
@@ -85,7 +85,7 @@ flowchart TD
       Auf einen `latest`-Tag wird bewusst verzichtet, damit sich die
       beiden Branch-Pipelines nicht gegenseitig überschreiben.
    2. **Promotion**: Die Pipeline schreibt den neuen Tag mit `yq` in
-      `k8s_helm/values-staging.yaml` und committet die Änderung auf den
+      `helm/values-staging.yaml` und committet die Änderung auf den
       Branch `main` dieses Repos (Secret `OPS_REPO_TOKEN`).
    3. **Sync**: ArgoCD (Application `user-mgmt-staging`) erkennt die
       Änderung und rollt das neue Image automatisch in den Namespace
@@ -142,7 +142,7 @@ vsc-ops/
 ├── application-prod.yaml                       # ArgoCD-Application -> Namespace user-mgmt-prod
 ├── application-monitoring.yaml                 # ArgoCD-Application -> kube-prometheus-stack (monitoring)
 ├── argocd-repository-prometheus-community.yaml # Helm-Repo-Registrierung in ArgoCD
-├── k8s_helm/                                   # Helm-Chart der Anwendung
+├── helm/                                       # Helm-Chart der Anwendung
 │   ├── Chart.yaml
 │   ├── values.yaml                             # Basiswerte (Defaults)
 │   ├── values-staging.yaml                     # Staging-Overrides + CI-verwaltete Image-Tags

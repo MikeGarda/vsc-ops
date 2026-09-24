@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/MikeGarda/vsc-ops.git
     targetRevision: main
-    path: k8s_helm
+    path: helm
     helm:
       valueFiles:
         - values.yaml
