@@ -14,7 +14,7 @@ images:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
     tag: 5041eda
   module_service:
-    repository: ghcr.io/mikegarda/module-service
+    repository: ghcr.io/mikegarda/module_service
     tag: 5041eda
 backend:
   resources:
