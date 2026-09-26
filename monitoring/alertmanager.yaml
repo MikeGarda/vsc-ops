@@ -1,13 +1,10 @@
 apiVersion: v1
 kind: Secret
-# WICHTIG: Der prometheus-operator liest die Alertmanager-Konfiguration NICHT aus
-# einer ConfigMap, sondern aus einem Secret (Feld "configSecret" der Alertmanager-CR).
-# Ist "alertmanagerSpec.configSecret" nicht explizit gesetzt, erwartet der Operator
-# ein Secret mit dem Namen "alertmanager-<crname>" (hier: alertmanager-<<release>>-alertmanager,
-# analog zum releaseName in application-monitoring.yaml). Der kube-prometheus-stack-Helm-Chart
-# legt selbst schon ein Secret mit exakt diesem Namen an (Default-Config, Receiver "null").
-# Da diese Datei als zweite (spaeter aufgeloeste) Quelle der Multi-Source-Application
-# gerendert wird, gewinnt sie gemaess ArgoCD "last source wins" gegenueber dem Helm-Secret.
+# Der prometheus-operator liest die Alertmanager-Konfiguration aus dem Secret
+# "alertmanager-<crname>" (hier: alertmanager-kube-prometheus-stack-alertmanager).
+# Der kube-prometheus-stack legt ein gleichnamiges Default-Secret an; da diese
+# Datei die zweite Quelle der Multi-Source-Application ist, gewinnt sie
+# (ArgoCD: "last source wins").
 type: Opaque
 metadata:
   name: alertmanager-kube-prometheus-stack-alertmanager
@@ -18,66 +15,33 @@ stringData:
       resolve_timeout: 5m
 
     route:
-      group_by: ['alertname']
-      group_wait: 10s
-      group_interval: 10s
-      repeat_interval: 1h
-      receiver: 'ntfy-k8s'
+      # Default: alles verwerfen. Der Stack bringt viele Standard-Alerts mit
+      # (u. a. "Watchdog", der IMMER feuert, und Control-Plane-Alerts, die auf
+      # DOKS nicht messbar sind) - die sollen den Kanal nicht zuspammen.
+      receiver: 'null'
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        # Nur Alerts unserer eigenen PrometheusRule (Label team=user-mgmt,
+        # siehe helm/templates/prometheusrule.yaml) gehen an ntfy.
+        - receiver: 'ntfy'
+          matchers:
+            - team = "user-mgmt"
 
     receivers:
-      - name: 'ntfy-k8s'
+      - name: 'null'
+      - name: 'ntfy'
         webhook_configs:
-          - url: 'https://ntfy.everyonehasabadday.ch'
+          # Topic "k8s" steht im PFAD -> ntfy veroeffentlicht den Request-Body
+          # (Alertmanager-JSON) als Nachricht in diesem Topic.
+          - url: 'https://ntfy.everyonehasabadday.ch/k8s'
             send_resolved: true
             http_config:
-              # alertmanagerSpec.secrets: [ntfy-token] (siehe monitoring/values.yaml)
-              # mountet das Secret "ntfy-token" unter /etc/alertmanager/secrets/ntfy-token/
-              # -> die einzelnen Secret-Keys sind Dateien in diesem Verzeichnis.
-              # Der Key im Secret heisst "token" (siehe setup-gitops.sh/.ps1:
-              # kubectl create secret generic ntfy-token --from-literal=token=...).
-              bearer_token_file: '/etc/alertmanager/secrets/ntfy-token/token'
-              headers:
-                Content-Type: 'application/json'
-                X-Markdown: 'yes'
-
-    # Das Secret wird vom Operator komplett unter /etc/alertmanager/config gemountet
-    # (Volume "config-volume", siehe StatefulSet des Alertmanager-Operators) - alle
-    # weiteren Keys dieses Secrets (z. B. ntfy.tmpl) landen ebenfalls dort, NICHT
-    # unter /etc/alertmanager/templates/ (dieser Pfad wird nirgends gemountet).
-    templates:
-      - '/etc/alertmanager/config/ntfy.tmpl'
-
-  ntfy.tmpl: |
-    {{ define "webhook.tmpl" -}}
-    {{- $title := "" -}}
-    {{- $message := "" -}}
-    {{- range $i, $a := .alerts -}}
-    {{-   $t := "" -}}
-    {{-   with $a.annotations.title -}}
-    {{-     $t = . -}}
-    {{-   end -}}
-    {{-   if not $t -}}
-    {{-     $t = $a.labels.alertname -}}
-    {{-   end -}}
-    {{-   if $i -}}
-    {{-     $title = printf "%s, %s" $title $t -}}
-    {{-   else -}}
-    {{-     $title = $t -}}
-    {{-   end -}}
-    {{-   $m := "" -}}
-    {{-   with $a.annotations.message -}}
-    {{-     $m = . -}}
-    {{-   end -}}
-    {{-   if not $m -}}
-    {{-     $m = $a.annotations.description -}}
-    {{-   end -}}
-    {{-   $m = printf "%s: %s" $a.labels.alertname $m -}}
-    {{-   if $i -}}
-    {{-     $message = printf "%s\n%s" $message $m -}}
-    {{-   else -}}
-    {{-     $message = $m -}}
-    {{-   end -}}
-    {{- end -}}
-    {{- $title = printf "%s!" $title -}}
-    {{- printf "{\"topic\": \"k8s\", \"title\": %s, \"message\": %s}" ($title | toJSON) ($message | toJSON) -}}
-    {{- end }}
+              # Token kommt aus dem Secret "ntfy-token" (Key "token"), das per
+              # alertmanagerSpec.secrets (monitoring/values.yaml) nach
+              # /etc/alertmanager/secrets/ntfy-token/ gemountet wird.
+              authorization:
+                type: Bearer
+                credentials_file: '/etc/alertmanager/secrets/ntfy-token/token'
