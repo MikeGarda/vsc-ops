@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: module-service
+  name: module_service
   labels:
     {{- include "user-mgmt.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.module-service.replicas }}
+  replicas: {{ .Values.module_service.replicas }}
   strategy:                        # --- Aufgabe 6: RollingUpdate ohne Unterbruch ---
     type: RollingUpdate
     rollingUpdate:
@@ -13,17 +13,17 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      {{- include "user-mgmt.selectorLabels" "module-service" | nindent 6 }}
+      {{- include "user-mgmt.selectorLabels" "module_service" | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "user-mgmt.selectorLabels" "module-service" | nindent 8 }}
+        {{- include "user-mgmt.selectorLabels" "module_service" | nindent 8 }}
     spec:
       containers:
-        - name: module-service
-          image: {{ .Values.images.module-service.repository }}:{{ .Values.images.module-service.tag }}
+        - name: module_service
+          image: {{ .Values.images.module_service.repository }}:{{ .Values.images.module_service.tag }}
           ports:
-            - containerPort: {{ .Values.module-service.port }}
+            - containerPort: {{ .Values.module_service.port }}
           env:
             - name: DATABASE_URL
               valueFrom:
@@ -41,12 +41,12 @@ spec:
                   name: app-config
                   key: MODULE_SERVICE_LOG_LEVEL
           resources:
-            {{- toYaml .Values.module-service.resources | nindent 12 }}
+            {{- toYaml .Values.module_service.resources | nindent 12 }}
           # --- Aufgabe 6: Probes (GET / antwortet mit 307 -> zaehlt als gesund) ---
           startupProbe:
             httpGet:
               path: /api/v1/modules
-              port: {{ .Values.module-service.port }}
+              port: {{ .Values.module_service.port }}
               scheme: HTTP
             periodSeconds: 5
             timeoutSeconds: 5
@@ -54,7 +54,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /api/v1/modules
-              port: {{ .Values.module-service.port }}
+              port: {{ .Values.module_service.port }}
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
@@ -62,7 +62,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /api/v1/modules
-              port: {{ .Values.module-service.port }}
+              port: {{ .Values.module_service.port }}
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
@@ -71,12 +71,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: module-service
+  name: module_service
   labels:
     {{- include "user-mgmt.labels" . | nindent 4 }}
 spec:
   selector:
-    {{- include "user-mgmt.selectorLabels" "module-service" | nindent 4 }}
+    {{- include "user-mgmt.selectorLabels" "module_service" | nindent 4 }}
   ports:
-    - port: {{ .Values.module-service.port }}
-      targetPort: {{ .Values.module-service.port }}
+    - port: {{ .Values.module_service.port }}
+      targetPort: {{ .Values.module_service.port }}

@@ -13,7 +13,7 @@ images:
   frontend:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
     tag: 5041eda
-  module-service:
+  module_service:
     repository: ghcr.io/mikegarda/module-service
     tag: 5041eda
 backend:
@@ -32,7 +32,7 @@ frontend:
   resources:
     requests: {cpu: 50m, memory: 128Mi}
     limits: {cpu: 250m, memory: 256Mi}
-module-service:
+module_service:
   replicas: 1
   resources:
     requests: {cpu: 50m, memory: 128Mi}
