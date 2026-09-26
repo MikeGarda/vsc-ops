@@ -15,11 +15,13 @@
 #
 set -euo pipefail
 
-# Secrets fuer App + Monitoring (lokal, hartkodiert)
-JWT_SECRET="0640a7da5b93ada23ea9afbee692fe7073aae3d76d432ee06184e6219c02311c"
-DB_PASSWORD="fce1487cd47acae11c618afd"
-GRAFANA_PASSWORD="e277127b73497a4042b558e209472815"
-NTFY_TOKEN="tk_v1dy3ast546gnp9blu6ri0grob4xv"
+# Secrets fuer App + Monitoring: NICHT im Repo. Werte kommen aus einer lokalen,
+# gitignorten Datei "secrets.env" (Vorlage: siehe README) oder aus Umgebungsvariablen.
+[ -f "$(dirname "${BASH_SOURCE[0]}")/secrets.env" ] && source "$(dirname "${BASH_SOURCE[0]}")/secrets.env"
+: "${JWT_SECRET:?JWT_SECRET fehlt (secrets.env oder export)}"
+: "${DB_PASSWORD:?DB_PASSWORD fehlt (secrets.env oder export)}"
+: "${GRAFANA_PASSWORD:?GRAFANA_PASSWORD fehlt (secrets.env oder export)}"
+: "${NTFY_TOKEN:?NTFY_TOKEN fehlt (secrets.env oder export)}"
 
 
 # Pfade relativ zum Skript-Verzeichnis (funktioniert also aus jedem CWD)

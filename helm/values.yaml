@@ -77,3 +77,11 @@ networkPolicy:
 monitoring:
   enabled: true
   scrapeInterval: 30s
+  # Aufgabe 1: Schwellenwerte der eigenen PrometheusRule (templates/prometheusrule.yaml)
+  rules:
+    enabled: true
+    loginFailuresPerSecond: 0.5   # > 0.5/s = mehr als 30 fehlgeschlagene Logins pro Minute
+    loginFailuresFor: 1m
+    errorRatePercent: 5           # > 5 % der Requests mit HTTP 5xx
+    errorRateFor: 5m
+    backendDownFor: 2m

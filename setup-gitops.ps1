@@ -106,6 +106,20 @@ kubectl create secret generic grafana-admin-credentials -n monitoring `
   --from-literal=admin-password="$($s.GRAFANA_PASSWORD)" `
   --dry-run=client -o yaml | kubectl apply -f - | Out-Host
 
+# 4c) Aufgabe 1: ntfy-Token fuer den Alertmanager (Benachrichtigungskanal).
+# Wird NICHT im Repo gespeichert: einmalig abfragen und in do-secrets.json
+# (gitignored) ablegen. Ohne dieses Secret startet der Alertmanager-Pod nicht,
+# weil monitoring/values.yaml es per alertmanagerSpec.secrets einbindet.
+if (-not $s.PSObject.Properties['NTFY_TOKEN']) {
+  $tok = Read-Host "ntfy-Access-Token eingeben (tk_...)"
+  $s | Add-Member -NotePropertyName NTFY_TOKEN -NotePropertyValue $tok
+  $s | ConvertTo-Json | Set-Content $secretFile -Encoding utf8
+  Write-Host "   do-secrets.json um NTFY_TOKEN erweitert." -ForegroundColor Yellow
+}
+kubectl create secret generic ntfy-token -n monitoring `
+  --from-literal=token="$($s.NTFY_TOKEN)" `
+  --dry-run=client -o yaml | kubectl apply -f - | Out-Host
+
 # Optional: Zugangsdaten zusaetzlich als GitHub-Secrets im Ops-Repo ablegen
 # (benoetigt eine eingeloggte gh-CLI). Damit sind sie auch ueber GitHub verfuegbar.
 if (Get-Command gh -ErrorAction SilentlyContinue) {
