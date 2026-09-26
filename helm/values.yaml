@@ -33,6 +33,12 @@ frontend:
   resources:
     requests: {cpu: 100m, memory: 128Mi}
     limits: {cpu: 300m, memory: 384Mi}
+modules-service:
+  replicas: 1
+  port: 8080
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 384Mi}
 db:
   replicas: 1
   port: 5432
@@ -50,6 +56,8 @@ config:
   NEXT_PUBLIC_API_URL: "http://backend:8080"
   POSTGRES_USER: "postgres"
   POSTGRES_DB: "postgres"
+  MODULE_SERVICE_MYSQL_SSL_DISABLED: true
+  MODULE_SERVICE_LOG_LEVEL: "INFO"
 ingress:
   enabled: true # Default; wird pro Umgebung ueberschrieben (nur prod hat einen Ingress)
   className: nginx

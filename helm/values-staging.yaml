@@ -13,6 +13,9 @@ images:
   frontend:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
     tag: c08e1ee
+  module-service:
+    repository: ghcr.io/mikegarda/module-service
+    tag: c08e1ee
 backend:
   resources:
     requests: {cpu: 100m, memory: 192Mi}
@@ -25,6 +28,11 @@ backend:
   podDisruptionBudget:
     enabled: false # Staging darf unterbrochen werden (1 Replica; ein PDB wuerde Node-Drains blockieren)
 frontend:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 250m, memory: 256Mi}
+module-service:
   replicas: 1
   resources:
     requests: {cpu: 50m, memory: 128Mi}

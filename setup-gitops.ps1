@@ -93,6 +93,7 @@ foreach ($e in $envs) {
   kubectl create secret generic app-secret -n $e.ns `
     --from-literal=SPRING_DATASOURCE_PASSWORD="$($s.DB_PASSWORD)" `
     --from-literal=JWT_SECRET="$($s.JWT_SECRET)" `
+    --from-literal=MODULE_SERVICE_DATABASE_URL="$($s.MODULE_SERVICE_DATABASE_URL)" `
     --dry-run=client -o yaml | kubectl apply -f - | Out-Host
 }
 

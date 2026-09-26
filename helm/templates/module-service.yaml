@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: module-service
+  labels:
+    {{- include "user-mgmt.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.module-service.replicas }}
+  strategy:                        # --- Aufgabe 6: RollingUpdate ohne Unterbruch ---
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "user-mgmt.selectorLabels" "module-service" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "user-mgmt.selectorLabels" "module-service" | nindent 8 }}
+    spec:
+      containers:
+        - name: module-service
+          image: {{ .Values.images.module-service.repository }}:{{ .Values.images.module-service.tag }}
+          ports:
+            - containerPort: {{ .Values.module-service.port }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: MODULE_SERVICE_DATABASE_URL
+            - name: MYSQL_SSL_DISABLED
+              valueForm:
+                configMapKeyRef:
+                  name: app-config
+                  key: MODULE_SERVICE_MYSQL_SSL_DISABLED
+            - name: LOG_LEVEL
+              valueForm:
+                configMapKeyRef:
+                  name: app-config
+                  key: MODULE_SERVICE_LOG_LEVEL
+          resources:
+            {{- toYaml .Values.module-service.resources | nindent 12 }}
+          # --- Aufgabe 6: Probes (GET / antwortet mit 307 -> zaehlt als gesund) ---
+          startupProbe:
+            httpGet:
+              path: /api/v1/modules
+              port: {{ .Values.module-service.port }}
+              scheme: HTTP
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /api/v1/modules
+              port: {{ .Values.module-service.port }}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /api/v1/modules
+              port: {{ .Values.module-service.port }}
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: module-service
+  labels:
+    {{- include "user-mgmt.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "user-mgmt.selectorLabels" "module-service" | nindent 4 }}
+  ports:
+    - port: {{ .Values.module-service.port }}
+      targetPort: {{ .Values.module-service.port }}
