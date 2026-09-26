@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: module_service
+  name: module-service
   labels:
     {{- include "user-mgmt.labels" . | nindent 4 }}
 spec:
