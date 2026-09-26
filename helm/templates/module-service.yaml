@@ -20,7 +20,7 @@ spec:
         {{- include "user-mgmt.selectorLabels" "module_service" | nindent 8 }}
     spec:
       containers:
-        - name: module_service
+        - name: module-service
           image: {{ .Values.images.module_service.repository }}:{{ .Values.images.module_service.tag }}
           ports:
             - containerPort: {{ .Values.module_service.port }}
