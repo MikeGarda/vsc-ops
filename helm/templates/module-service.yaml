@@ -31,12 +31,12 @@ spec:
                   name: app-secret
                   key: MODULE_SERVICE_DATABASE_URL
             - name: MYSQL_SSL_DISABLED
-              valueForm:
+              valueFrom:
                 configMapKeyRef:
                   name: app-config
                   key: MODULE_SERVICE_MYSQL_SSL_DISABLED
             - name: LOG_LEVEL
-              valueForm:
+              valueFrom:
                 configMapKeyRef:
                   name: app-config
                   key: MODULE_SERVICE_LOG_LEVEL

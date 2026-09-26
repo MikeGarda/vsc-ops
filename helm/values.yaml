@@ -56,7 +56,7 @@ config:
   NEXT_PUBLIC_API_URL: "http://backend:8080"
   POSTGRES_USER: "postgres"
   POSTGRES_DB: "postgres"
-  MODULE_SERVICE_MYSQL_SSL_DISABLED: True
+  MODULE_SERVICE_MYSQL_SSL_DISABLED: true
   MODULE_SERVICE_LOG_LEVEL: "INFO"
 ingress:
   enabled: true # Default; wird pro Umgebung ueberschrieben (nur prod hat einen Ingress)
