@@ -9,17 +9,17 @@
 images:
   backend:
     repository: ghcr.io/mikegarda/user_mgmt_service-backend
-    tag: 489c0af
+    tag: 1fafe7f
   frontend:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
-    tag: 489c0af
+    tag: 1fafe7f
   module_service:
     repository: ghcr.io/mikegarda/module_service
-    tag: 0dd9c7f  # wird von der Prod-Pipeline ueberschrieben
+    tag: 1fafe7f # wird von der Prod-Pipeline ueberschrieben
 backend:
   resources:
     requests: {cpu: 200m, memory: 256Mi}
-    limits: {cpu: "1", memory: 640Mi}  # JVM-Start braucht CPU-Burst
+    limits: {cpu: "1", memory: 640Mi} # JVM-Start braucht CPU-Burst
   autoscaling:
     enabled: true
     minReplicas: 2 # nie weniger als 2 -> redundant
