@@ -9,13 +9,13 @@
 images:
   backend:
     repository: ghcr.io/mikegarda/user_mgmt_service-backend
-    tag: 1fafe7f
+    tag: dbcb73e
   frontend:
     repository: ghcr.io/mikegarda/user_mgmt_service-frontend
-    tag: 1fafe7f
+    tag: dbcb73e
   module_service:
     repository: ghcr.io/mikegarda/module_service
-    tag: 1fafe7f # wird von der Prod-Pipeline ueberschrieben
+    tag: dbcb73e # wird von der Prod-Pipeline ueberschrieben
 backend:
   resources:
     requests: {cpu: 200m, memory: 256Mi}
@@ -38,7 +38,7 @@ module_service:
   replicas: 2 # redundant wie Backend/Frontend
   resources:
     requests: {cpu: 250m, memory: 128Mi}
-    limits: {cpu: "1", memory: 256Mi}  # Lasttest: CPU-Limit war Engpass
+    limits: {cpu: "1", memory: 256Mi} # Lasttest: CPU-Limit war Engpass
 resourceQuota:
   enabled: true
   requests: {cpu: "3", memory: 3Gi}
