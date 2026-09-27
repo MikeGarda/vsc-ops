@@ -37,12 +37,12 @@ module_service:
   enabled: true
   replicas: 2 # redundant wie Backend/Frontend
   resources:
-    requests: {cpu: 100m, memory: 128Mi}
-    limits: {cpu: 500m, memory: 256Mi}
+    requests: {cpu: 250m, memory: 128Mi}
+    limits: {cpu: "1", memory: 256Mi}  # Lasttest: CPU-Limit war Engpass
 resourceQuota:
   enabled: true
   requests: {cpu: "3", memory: 3Gi}
-  limits: {cpu: "8", memory: 6Gi}
+  limits: {cpu: "10", memory: 6Gi}
 networkPolicy:
   enabled: true
   ingressNamespace: ingress-nginx
