@@ -1,10 +1,15 @@
 # Orchestrierung & Observability / Aufgabe 1 (Erweiterung Aufgabe 5, Kyverno):
-# Prometheus (Namespace "monitoring") darf die Metrik-Endpunkte der
-# Kyverno-Controller (admission-, background-, cleanup-, reports-controller)
-# im Namespace "policy" scrapen (kyverno-*-metrics-Services, Port 8000).
-# Kyverno selbst installiert standardmaessig KEINE NetworkPolicy
-# (networkPolicy.enabled=false je Controller, siehe Chart-Values), daher hier
-# als eigenstaendiges, deklaratives Manifest im Ops-Repo (wie die ClusterPolicies).
+# Eingehender Verkehr zu den Kyverno-Controllern im Namespace "policy".
+#
+# WICHTIG: Sobald eine NetworkPolicy einen Pod auswaehlt, ist fuer ihn nur noch
+# erlaubt, was explizit freigegeben ist. Deshalb braucht es ZWEI Regeln:
+#  1) Port 9443 = Admission-Webhooks. Der Kubernetes-API-Server fragt Kyverno
+#     bei JEDER Pod-Erstellung an. Bei DigitalOcean laeuft der API-Server
+#     ausserhalb des Clusters (verwaltete Control Plane) -> keine feste Quelle,
+#     daher ohne "from". Fehlt diese Regel, laufen die Webhook-Aufrufe in einen
+#     Timeout und Kyverno (failurePolicy Fail) blockiert JEDE Pod-Erstellung
+#     im ganzen Cluster.
+#  2) Port 8000 = Metriken, nur fuer Prometheus aus dem Namespace "monitoring".
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -20,6 +25,11 @@ spec:
   policyTypes:
     - Ingress
   ingress:
+    # 1) Admission-Webhooks (API-Server -> Kyverno)
+    - ports:
+        - protocol: TCP
+          port: 9443
+    # 2) Prometheus-Scrape der Kyverno-Metriken
     - from:
         - namespaceSelector:
             matchLabels:
