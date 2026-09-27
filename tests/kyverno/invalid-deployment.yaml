@@ -1,0 +1,30 @@
+# Aufgabe 5: ABSICHTLICH UNGUELTIGES Manifest - Nachweis des Kyverno-Enforcements.
+# Verstoesst gegen alle drei ClusterPolicies:
+#   disallow-latest-tag      -> Image mit ":latest"
+#   require-probes           -> keine liveness-/readinessProbe
+#   require-requests-limits  -> keine resources
+# Erwartung: "kubectl apply" wird vom Kyverno-Admission-Webhook ABGELEHNT,
+# es entsteht weder Deployment noch Pod.
+#
+# Test:  kubectl apply -f tests/kyverno/invalid-deployment.yaml
+# NICHT in policy/ ablegen (ArgoCD synchronisiert diesen Ordner).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kyverno-violation-test
+  namespace: user-mgmt-staging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kyverno-violation-test
+  template:
+    metadata:
+      labels:
+        app: kyverno-violation-test
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80

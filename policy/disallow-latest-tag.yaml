@@ -1,17 +1,39 @@
+# Aufgabe 5: gilt nur fuer die Namespaces der eigenen Anwendung. Fremd-Software
+# (ArgoCD, ingress-nginx, Monitoring, metrics-server) liefert eigene Pod-Specs
+# ohne Limits/Probes - cluster-weites Enforce wuerde deren Neustarts blockieren.
+# Kyverno leitet aus der Pod-Regel automatisch Regeln fuer Deployments,
+# StatefulSets, Jobs usw. ab (autogen) -> schon das Deployment wird abgelehnt.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: disallow-latest-tag
 spec:
-  validationFailureAction: Enforce
+  background: true
   rules:
     - name: require-image-tag
       match:
-        resources:
-          kinds: [Pod]
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [user-mgmt-staging, user-mgmt-prod]
       validate:
+        failureAction: Enforce
         message: "Das Image darf nicht den Tag ':latest' verwenden."
         pattern:
           spec:
             containers:
               - image: "!*:latest"
+    # Ohne Tag (z. B. "nginx") verwendet Docker stillschweigend ":latest"
+    - name: require-explicit-tag
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [user-mgmt-staging, user-mgmt-prod]
+      validate:
+        failureAction: Enforce
+        message: "Das Image muss ein explizites Tag haben (z. B. :1.2.3)."
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"

@@ -1,0 +1,116 @@
+# Aufgabe 6: Lasttest fuer den module_service (vertikale Skalierung / Limits).
+# Kyverno-konform (Aufgabe 5): festes Image-Tag, liveness/readiness-Probes,
+# requests + limits. Laeuft im Namespace "monitoring" - die NetworkPolicy
+# allow-monitoring erlaubt von dort Port 8080 auf den module_service.
+#
+# Starten:   kubectl apply -f k6/k6-module-service.yaml
+# Ergebnis:  kubectl logs job/k6-module-service -n monitoring --tail=60
+# Wiederholen: kubectl delete job k6-module-service -n monitoring  (dann erneut apply)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-module-service
+  namespace: monitoring
+data:
+  module-service.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+
+    const BASE_URL = __ENV.BASE_URL;
+    // Stamm-Module (werden vom module_service beim Start angelegt)
+    const MODULES = [
+      'c02f58f2-3aca-4f1e-8076-bacf6f1999e6',
+      '6d5889ee-f4c7-44d7-a887-da92d2a51ac4',
+      '674ca4e0-6334-4b12-aa83-d97895049b8a',
+      '4b9ff45a-d90f-42b0-8b72-20f0b92b6027',
+    ];
+
+    export const options = {
+      scenarios: {
+        ramp: {
+          executor: 'ramping-vus',
+          startVUs: 0,
+          stages: [
+            { duration: '1m', target: 10 },  // Einstieg
+            { duration: '2m', target: 30 },  // steigende Last
+            { duration: '2m', target: 60 },  // Peak
+            { duration: '2m', target: 60 },  // Peak halten
+            { duration: '1m', target: 0 },   // Abbau
+          ],
+          gracefulRampDown: '20s',
+        },
+      },
+      thresholds: {
+        http_req_failed: ['rate<0.01'],       // < 1 % Fehler
+        http_req_duration: ['p(95)<500'],     // 95 % schneller als 500 ms
+      },
+    };
+
+    function uuid() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+      });
+    }
+
+    export default function () {
+      const roll = Math.random();
+      const id = MODULES[Math.floor(Math.random() * MODULES.length)];
+      if (roll < 0.6) {
+        const r = http.get(`${BASE_URL}/api/v1/modules`, { tags: { endpoint: 'list' } });
+        check(r, { 'list 200': (x) => x.status === 200 });
+      } else if (roll < 0.8) {
+        const r = http.get(`${BASE_URL}/api/v1/modules/${id}`, { tags: { endpoint: 'get' } });
+        check(r, { 'get 200': (x) => x.status === 200 });
+      } else {
+        const r = http.put(`${BASE_URL}/api/v1/users/${uuid()}/modules/${id}`, null, { tags: { endpoint: 'assign' } });
+        check(r, { 'assign 204': (x) => x.status === 204 });
+      }
+      sleep(0.2);
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-module-service
+  namespace: monitoring
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: k6-module-service
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: grafana/k6:1.0.0          # festes Tag (Kyverno: disallow-latest-tag)
+          # REST-API von k6 auf allen Interfaces -> dient als Probe-Endpunkt
+          args: ["run", "--address", "0.0.0.0:6565", "/scripts/module-service.js"]
+          env:
+            - name: BASE_URL
+              value: "http://module-service.user-mgmt-staging:8080"
+          ports:
+            - containerPort: 6565
+          readinessProbe:                  # Kyverno: require-probes
+            httpGet:
+              path: /v1/status
+              port: 6565
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /v1/status
+              port: 6565
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:                       # Kyverno: require-requests-limits
+            requests: {cpu: 250m, memory: 128Mi}
+            limits: {cpu: "1", memory: 256Mi}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: k6-module-service
